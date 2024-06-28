@@ -8,9 +8,9 @@ class World {
         this.renderDistance = 2;
 
         this.ground = {
-            height = 10,
-            offset = -10,
-            scale = 0.04
+            height: 10,
+            offset: -10,
+            scale:0.04
         }
     }
 
