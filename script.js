@@ -28,6 +28,8 @@ function animate() {
 }
 animate();
 
+var world = new World();
+
 var mouse = {
     l: false,
     r: false,
@@ -44,15 +46,38 @@ var player = {
     r: 0,
     t: 0,
 
+    camera: {
+        x: 0,
+        y: 0,
+        z: 0,
+    },
+
+    facing: {
+        x: 0,
+        y: 0,
+        z: 0,
+        chunkX: 0,
+        chunkY: 0,
+        chunkZ: 0,
+        block: null,
+        ray: new THREE.Raycaster()
+    },
+
     health: {
         current: 10,
         max: 10
     }
 };
 
-var world = new World();
+player.chunk = {
+    x: world.gc(player.x),
+    y: world.gc(player.y),
+    z: world.gc(player.z)
+}
 
 let hudsprites = {};
+
+var smoothFps = 0;
 
 function preload() {
     hudsprites.image = loadImage('https://cdn.jsdelivr.net/gh/badteam123/assets@ef9adc24840dd4b3299a203a73c71ff8fc649d6d/pixelart/hudspritesheet.png');
@@ -73,9 +98,9 @@ function setup() {
     noSmooth();
     frameRate(9999999);
 
-    grassTex = new THREE.TextureLoader().load(`https://cdn.jsdelivr.net/gh/badteam123/assets@9e492449c938d0b211e8e7a70491c579a653c54e/grass.png`);
+    grassTex = new THREE.TextureLoader().load(`https://cdn.jsdelivr.net/gh/badteam123/assets@8286a7f20aa9331b86a7b3ac2401ec4b986ba7da/texsheet.png`);
     grassTex.magFilter = THREE.NearestFilter;
-    grassTex.minFilter = THREE.LinearMipmapLinearFilter;
+    grassTex.minFilter = THREE.LinearMipmapNearestFilter;
     grassTex.wrapS = THREE.RepeatWrapping;
     grassTex.wrapT = THREE.RepeatWrapping;
 
@@ -89,7 +114,7 @@ function setup() {
     
     world.compile();
 
-    image(hudsprites.heart,100,100,100,100);
+    //image(hudsprites.heart,100,100,100,100);
 
 }
 
@@ -123,6 +148,14 @@ function draw() {
         player.x -= Math.sin(player.r + (PI * 1.5)) * deltaTime * 0.015;
     }
 
+    let prevChunk = JSON.parse(JSON.stringify(player.chunk));
+
+    player.chunk = {
+        x: world.gc(player.x),
+        y: world.gc(player.y),
+        z: world.gc(player.z)
+    }
+
     camera.rotateX(-player.t);
     camera.rotateY(-player.r);
 
@@ -149,12 +182,49 @@ function draw() {
     camera.rotateY(player.r);
     camera.rotateX(player.t);
 
-    camera.position.x = player.x;
-    camera.position.y = player.y;
-    camera.position.z = player.z;
+    if (isNaN(smoothFps)) {
+        smoothFps = 60;
+    }
+    if (deltaTime != undefined) {
+        smoothFps = lerp(smoothFps, (1000 / deltaTime), 0.01);
+    }
+
+    hud();
+
+    player.camera = {
+        x: player.x,
+        y: player.y,
+        z: player.z
+    }
+
+    camera.position.x = player.camera.x;
+    camera.position.y = player.camera.y;
+    camera.position.z = player.camera.z;
     camera.aspect = window.innerWidth / window.innerHeight;
 
+    updateBlockFacing();
+
     camera.updateProjectionMatrix();
+
+}
+
+function hud(){
+    clear();
+    textSize(32);
+    text("FPS: " + Math.round(smoothFps * 10) / 10, 10, 30);
+}
+
+function updateBlockFacing() {
+
+    player.facing.ray = new THREE.Raycaster()
+    player.facing.ray.setFromCamera(new THREE.Vector2(0, 0), camera);
+    let intersects = player.facing.ray.intersectObjects(scene.children, true);
+
+    if (intersects.length >= 1) {
+        player.facing.x = Math.round(intersects[0].point.x - (intersects[0].face.normal.x * 0.5));
+        player.facing.y = Math.round(intersects[0].point.y - (intersects[0].face.normal.y * 0.5));
+        player.facing.z = Math.round(intersects[0].point.z - (intersects[0].face.normal.z * 0.5));
+    }
 
 }
 

@@ -2,15 +2,15 @@ class World {
     constructor() {
         this.chunk = {};
         this.chunkModel = {};
-        this.chunkSize = 16;
+        this.chunkSize = 8;
         this.update = [];
         this.urgentUpdate = [];
-        this.renderDistance = 2;
+        this.renderDistance = 6;
 
         this.ground = {
-            height = 10,
-            offset = -10,
-            scale = 0.04
+            height: 20,
+            offset: -10,
+            scale: 0.04
         }
     }
 
@@ -54,14 +54,29 @@ class World {
 
     generate(xc, yc, zc) {
         for (let x = xc * this.chunkSize; x < (xc * this.chunkSize) + this.chunkSize; x++) {
-            for (let y = yc * this.chunkSize; y < (yc * this.chunkSize) + this.chunkSize; y++) {
-                for (let z = zc * this.chunkSize; z < (zc * this.chunkSize) + this.chunkSize; z++) {
-                    if ((Math.round(noise(x * this.ground.scale, z * this.ground.scale) * this.ground.height) - this.ground.offset) === y) {
-                        this.addBlockRaw(x, y, z, null);
+            for (let z = zc * this.chunkSize; z < (zc * this.chunkSize) + this.chunkSize; z++) {
+                let groundHeight = (Math.round(noise(x * this.ground.scale + 100, z * this.ground.scale + 100) * this.ground.height) + this.ground.offset);
+                for (let y = yc * this.chunkSize; y < (yc * this.chunkSize) + this.chunkSize; y++) {
+                
+
+                    // grass
+                    if (y === groundHeight) {
+                        this.addBlockRaw(x, y, z, "grass");
                     }
+
+                    // dirt
+                    if (y < groundHeight && y > groundHeight - 7) {
+                        this.addBlockRaw(x, y, z, "dirt");
+                    }
+
+                    // stone
+                    if (y <= groundHeight - 7) {
+                        this.addBlockRaw(x, y, z, "stone");
+                    }
+
                 }
             }
-        }
+        }   
     }
 
     generateNearby() {
@@ -69,6 +84,7 @@ class World {
         let ch = this.gc(player.x, player.y, player.z);
 
         for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
+            console.log(x);
             for (let y = -this.renderDistance; y <= this.renderDistance; y++) {
                 for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
                     if (!this.chunk[ch[0] + x]) {
@@ -111,6 +127,15 @@ class World {
         for (let x in this.chunk) {
             for (let y in this.chunk[x]) {
                 for (let z in this.chunk[x][y]) {
+
+                    if (this.chunkModel[x][y][z].model === undefined) {
+
+                    } else {
+                        scene.remove(this.chunkModel[x][y][z].model);
+                        this.chunkModel[x][y][z].model.geometry.dispose();
+                        this.chunkModel[x][y][z].model.material.dispose();
+                    }
+
                     let vertices = [];
                     let indices = [];
                     let UVs = [];
@@ -130,10 +155,10 @@ class World {
                             vertices.push(block.x - 0.5, block.y + 0.5, block.z - 0.5);
                             vertices.push(block.x + 0.5, block.y + 0.5, block.z - 0.5);
                             vertices.push(block.x + 0.5, block.y - 0.5, block.z - 0.5);
-                            UVs.push(0, 0);
-                            UVs.push(0, 1);
-                            UVs.push(1, 1);
-                            UVs.push(1, 0);
+                            UVs.push(block.lx, block.ly);
+                            UVs.push(block.lx, block.hy);
+                            UVs.push(block.hx, block.hy);
+                            UVs.push(block.hx, block.ly);
                             indices.push(0 + totalIndices, 2 + totalIndices, 1 + totalIndices, 0 + totalIndices, 3 + totalIndices, 2 + totalIndices);
                             totalIndices += 4;
                         }
@@ -145,10 +170,10 @@ class World {
                             vertices.push(block.x - 0.5, block.y + 0.5, block.z + 0.5);
                             vertices.push(block.x + 0.5, block.y + 0.5, block.z + 0.5);
                             vertices.push(block.x + 0.5, block.y - 0.5, block.z + 0.5);
-                            UVs.push(0, 0);
-                            UVs.push(0, 1);
-                            UVs.push(1, 1);
-                            UVs.push(1, 0);
+                            UVs.push(block.lx, block.ly);
+                            UVs.push(block.lx, block.hy);
+                            UVs.push(block.hx, block.hy);
+                            UVs.push(block.hx, block.ly);
                             indices.push(0 + totalIndices, 1 + totalIndices, 2 + totalIndices, 0 + totalIndices, 2 + totalIndices, 3 + totalIndices);
                             totalIndices += 4;
                         }
@@ -159,10 +184,10 @@ class World {
                             vertices.push(block.x - 0.5, block.y + 0.5, block.z + 0.5);
                             vertices.push(block.x - 0.5, block.y - 0.5, block.z + 0.5);
                             vertices.push(block.x - 0.5, block.y - 0.5, block.z - 0.5);
-                            UVs.push(1, 1);
-                            UVs.push(0, 1);
-                            UVs.push(0, 0);
-                            UVs.push(1, 0);
+                            UVs.push(block.hx, block.hy);
+                            UVs.push(block.lx, block.hy);
+                            UVs.push(block.lx, block.ly);
+                            UVs.push(block.hx, block.ly);
                             indices.push(2 + totalIndices, 3 + totalIndices, 0 + totalIndices, 2 + totalIndices, 0 + totalIndices, 1 + totalIndices);
                             totalIndices += 4;
                         }
@@ -173,10 +198,10 @@ class World {
                             vertices.push(block.x + 0.5, block.y + 0.5, block.z - 0.5);
                             vertices.push(block.x + 0.5, block.y - 0.5, block.z - 0.5);
                             vertices.push(block.x + 0.5, block.y - 0.5, block.z + 0.5);
-                            UVs.push(1, 1);
-                            UVs.push(0, 1);
-                            UVs.push(0, 0);
-                            UVs.push(1, 0);
+                            UVs.push(block.hx, block.hy);
+                            UVs.push(block.lx, block.hy);
+                            UVs.push(block.lx, block.ly);
+                            UVs.push(block.hx, block.ly);
                             indices.push(0 + totalIndices, 1 + totalIndices, 2 + totalIndices, 0 + totalIndices, 2 + totalIndices, 3 + totalIndices);
                             totalIndices += 4;
                         }
@@ -187,10 +212,10 @@ class World {
                             vertices.push(block.x - 0.5, block.y - 0.5, block.z + 0.5);
                             vertices.push(block.x + 0.5, block.y - 0.5, block.z + 0.5);
                             vertices.push(block.x + 0.5, block.y - 0.5, block.z - 0.5);
-                            UVs.push(0, 0);
-                            UVs.push(0, 1);
-                            UVs.push(1, 1);
-                            UVs.push(1, 0);
+                            UVs.push(block.lx, block.ly);
+                            UVs.push(block.lx, block.hy);
+                            UVs.push(block.hx, block.hy);
+                            UVs.push(block.hx, block.ly);
                             indices.push(0 + totalIndices, 2 + totalIndices, 3 + totalIndices, 0 + totalIndices, 1 + totalIndices, 2 + totalIndices);
                             totalIndices += 4;
                         }
@@ -201,10 +226,10 @@ class World {
                             vertices.push(block.x - 0.5, block.y + 0.5, block.z - 0.5);
                             vertices.push(block.x + 0.5, block.y + 0.5, block.z - 0.5);
                             vertices.push(block.x + 0.5, block.y + 0.5, block.z + 0.5);
-                            UVs.push(0, 1);
-                            UVs.push(0, 0);
-                            UVs.push(1, 0);
-                            UVs.push(1, 1);
+                            UVs.push(block.lx, block.hy);
+                            UVs.push(block.lx, block.ly);
+                            UVs.push(block.hx, block.ly);
+                            UVs.push(block.hx, block.hy);
                             indices.push(1 + totalIndices, 2 + totalIndices, 3 + totalIndices, 1 + totalIndices, 3 + totalIndices, 0 + totalIndices);
                             totalIndices += 4;
                         }
@@ -229,6 +254,123 @@ class World {
                 }
             }
         }
-        console.log("bruh");
+    }
+
+    compileChunk(x, y, z) {
+                    let vertices = [];
+                    let indices = [];
+                    let UVs = [];
+
+                    let totalIndices = 0;
+
+                    let chunk = this.chunk[x][y][z];
+
+                    let lngth = this.chunk[x][y][z].length
+
+                    for (let b = 0; b < lngth; b++) {
+                        let block = chunk[b];
+
+                        // Back (z-)
+                        if (!this.checkForBlock(chunk, block.x, block.y, block.z - 1)) {
+                            vertices.push(block.x - 0.5, block.y - 0.5, block.z - 0.5);
+                            vertices.push(block.x - 0.5, block.y + 0.5, block.z - 0.5);
+                            vertices.push(block.x + 0.5, block.y + 0.5, block.z - 0.5);
+                            vertices.push(block.x + 0.5, block.y - 0.5, block.z - 0.5);
+                            UVs.push(block.lx, block.ly);
+                            UVs.push(block.lx, block.hy);
+                            UVs.push(block.hx, block.hy);
+                            UVs.push(block.hx, block.ly);
+                            indices.push(0 + totalIndices, 2 + totalIndices, 1 + totalIndices, 0 + totalIndices, 3 + totalIndices, 2 + totalIndices);
+                            totalIndices += 4;
+                        }
+
+
+                        // Front (z+)
+                        if (!this.checkForBlock(chunk, block.x, block.y, block.z + 1)) {
+                            vertices.push(block.x - 0.5, block.y - 0.5, block.z + 0.5);
+                            vertices.push(block.x - 0.5, block.y + 0.5, block.z + 0.5);
+                            vertices.push(block.x + 0.5, block.y + 0.5, block.z + 0.5);
+                            vertices.push(block.x + 0.5, block.y - 0.5, block.z + 0.5);
+                            UVs.push(block.lx, block.ly);
+                            UVs.push(block.lx, block.hy);
+                            UVs.push(block.hx, block.hy);
+                            UVs.push(block.hx, block.ly);
+                            indices.push(0 + totalIndices, 1 + totalIndices, 2 + totalIndices, 0 + totalIndices, 2 + totalIndices, 3 + totalIndices);
+                            totalIndices += 4;
+                        }
+
+                        // Left (x-)
+                        if (!this.checkForBlock(chunk, block.x - 1, block.y, block.z)) {
+                            vertices.push(block.x - 0.5, block.y + 0.5, block.z - 0.5);
+                            vertices.push(block.x - 0.5, block.y + 0.5, block.z + 0.5);
+                            vertices.push(block.x - 0.5, block.y - 0.5, block.z + 0.5);
+                            vertices.push(block.x - 0.5, block.y - 0.5, block.z - 0.5);
+                            UVs.push(block.hx, block.hy);
+                            UVs.push(block.lx, block.hy);
+                            UVs.push(block.lx, block.ly);
+                            UVs.push(block.hx, block.ly);
+                            indices.push(2 + totalIndices, 3 + totalIndices, 0 + totalIndices, 2 + totalIndices, 0 + totalIndices, 1 + totalIndices);
+                            totalIndices += 4;
+                        }
+
+                        // Right (x+)
+                        if (!this.checkForBlock(chunk, block.x + 1, block.y, block.z)) {
+                            vertices.push(block.x + 0.5, block.y + 0.5, block.z + 0.5);
+                            vertices.push(block.x + 0.5, block.y + 0.5, block.z - 0.5);
+                            vertices.push(block.x + 0.5, block.y - 0.5, block.z - 0.5);
+                            vertices.push(block.x + 0.5, block.y - 0.5, block.z + 0.5);
+                            UVs.push(block.hx, block.hy);
+                            UVs.push(block.lx, block.hy);
+                            UVs.push(block.lx, block.ly);
+                            UVs.push(block.hx, block.ly);
+                            indices.push(0 + totalIndices, 1 + totalIndices, 2 + totalIndices, 0 + totalIndices, 2 + totalIndices, 3 + totalIndices);
+                            totalIndices += 4;
+                        }
+
+                        // Bottom (y-)
+                        if (!this.checkForBlock(chunk, block.x, block.y - 1, block.z)) {
+                            vertices.push(block.x - 0.5, block.y - 0.5, block.z - 0.5);
+                            vertices.push(block.x - 0.5, block.y - 0.5, block.z + 0.5);
+                            vertices.push(block.x + 0.5, block.y - 0.5, block.z + 0.5);
+                            vertices.push(block.x + 0.5, block.y - 0.5, block.z - 0.5);
+                            UVs.push(block.lx, block.ly);
+                            UVs.push(block.lx, block.hy);
+                            UVs.push(block.hx, block.hy);
+                            UVs.push(block.hx, block.ly);
+                            indices.push(0 + totalIndices, 2 + totalIndices, 3 + totalIndices, 0 + totalIndices, 1 + totalIndices, 2 + totalIndices);
+                            totalIndices += 4;
+                        }
+
+                        // Top (y+)
+                        if (!this.checkForBlock(chunk, block.x, block.y + 1, block.z)) {
+                            vertices.push(block.x - 0.5, block.y + 0.5, block.z + 0.5);
+                            vertices.push(block.x - 0.5, block.y + 0.5, block.z - 0.5);
+                            vertices.push(block.x + 0.5, block.y + 0.5, block.z - 0.5);
+                            vertices.push(block.x + 0.5, block.y + 0.5, block.z + 0.5);
+                            UVs.push(block.lx, block.hy);
+                            UVs.push(block.lx, block.ly);
+                            UVs.push(block.hx, block.ly);
+                            UVs.push(block.hx, block.hy);
+                            indices.push(1 + totalIndices, 2 + totalIndices, 3 + totalIndices, 1 + totalIndices, 3 + totalIndices, 0 + totalIndices);
+                            totalIndices += 4;
+                        }
+                    }
+
+                    let vertices2 = new Float32Array(vertices);
+                    let indices2 = new Uint16Array(indices);
+                    let UVs2 = new Float32Array(UVs);
+
+                    let geometry = new THREE.BufferGeometry();
+
+                    geometry.setAttribute('position', new THREE.BufferAttribute(vertices2, 3));
+                    geometry.setAttribute('uv', new THREE.BufferAttribute(UVs2, 2));
+                    geometry.setIndex(new THREE.BufferAttribute(indices2, 1));
+
+                    geometry.computeVertexNormals();
+
+                    let material = new THREE.MeshStandardMaterial({ map: grassTex, side: THREE.BackSide });
+                    this.chunkModel[x][y][z].model = new THREE.Mesh(geometry, material);
+
+                    scene.add(this.chunkModel[x][y][z].model);
     }
 }
