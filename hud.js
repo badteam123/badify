@@ -23,6 +23,7 @@ function hud() {
     textSize(32);
     text(`FPS ${Math.round(smoothFps * 10) / 10}\n${round(player.x, 2)},${round(player.z, 2)}`, 10, 30);
 
+    /*
     // Calculate the offset to place the model in front of the player
         let downAngle;
         let distFromCam;
@@ -54,5 +55,6 @@ function hud() {
             player.camera.y + relY,
             player.camera.z + relZ
         );
+    */
 
 }

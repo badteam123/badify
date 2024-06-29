@@ -2,24 +2,86 @@ class World {
     constructor() {
         this.chunk = {};
         this.chunkModel = {};
-        this.chunkSize = 8;
+        this.chunkSize = 10;
         this.update = [];
         this.urgentUpdate = [];
-        this.renderDistance = 2;
+        this.renderDistance = 4;
         this.seed = Math.random();
-        initNoise();
 
         this.ground = {
-            height: 5,
+            height: 6,
             offset: -5,
-            scale: 0.03
+            scale: 0.07
         },
 
             this.cave = {
                 scaleHoriz: 0.06,
                 scaleVert: 0.12,
-                threshold: 0.6
+                threshold: 0.3
             }
+
+    }
+
+    generate(xc, yc, zc) {
+
+        let alreadyExists = false;
+        if (this.chunk[xc]) {
+            if (this.chunk[xc][yc]) {
+                if (Array.isArray(this.chunk[xc][yc][zc])) {
+                    alreadyExists = true;
+                }
+            }
+        }
+
+        if (!alreadyExists) {
+
+            if (!this.chunk[xc]) {
+                this.chunk[xc] = {};
+            }
+            if (!this.chunk[xc][yc]) {
+                this.chunk[xc][yc] = {};
+            }
+            if (!Array.isArray(this.chunk[xc][yc][zc])) {
+                this.chunk[xc][yc][zc] = [];
+            }
+            if (!this.chunkModel[xc]) {
+                this.chunkModel[xc] = {};
+            }
+            if (!this.chunkModel[xc][yc]) {
+                this.chunkModel[xc][yc] = {};
+            }
+            if (!this.chunkModel[xc][yc][zc]) {
+                this.chunkModel[xc][yc][zc] = {};
+            }
+
+            for (let x = xc * this.chunkSize; x < (xc * this.chunkSize) + this.chunkSize; x++) {
+                for (let z = zc * this.chunkSize; z < (zc * this.chunkSize) + this.chunkSize; z++) {
+                    let groundHeight = (Math.round(perlin2D.noise(x * this.ground.scale + 100, z * this.ground.scale + 100) * this.ground.height) + this.ground.offset);
+                    for (let y = yc * this.chunkSize; y < (yc * this.chunkSize) + this.chunkSize; y++) {
+
+                        if (perlin3D.noise(x * this.cave.scaleHoriz + 1246, y * this.cave.scaleVert + 1285, z * this.cave.scaleHoriz + 1983) < this.cave.threshold) {
+                            // grass
+                            if (y === groundHeight) {
+                                this.addBlockRaw(x, y, z, "grass");
+                            }
+
+                            // dirt
+                            if (y < groundHeight && y > groundHeight - 3) {
+                                this.addBlockRaw(x, y, z, "dirt");
+                            }
+
+                            // stone
+                            if (y <= groundHeight - 3) {
+                                this.addBlockRaw(x, y, z, "stone");
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+
+        this.compile(xc, yc, zc);
 
     }
 
@@ -162,72 +224,21 @@ class World {
         }
     }
 
+    unloadChunk(x, y, z){
+        scene.remove(this.chunkModel[x][y][z].model);
+        this.chunkModel[x][y][z].rendered = false;
+    }
+
+    loadChunk(x, y, z){
+        if(!this.chunkModel[x][y][z].rendered){
+            scene.add(this.chunkModel[x][y][z].model);
+            this.chunkModel[x][y][z].rendered = true;
+        }
+    }
+
     addBlockRaw(x, y, z, tex) {
         let ch = this.gc(x, y, z);
         this.chunk[ch[0]][ch[1]][ch[2]].push(new Block(x, y, z, tex));
-    }
-
-    generate(xc, yc, zc) {
-
-        let alreadyExists = false;
-        if (this.chunk[xc]) {
-            if (this.chunk[xc][yc]) {
-                if (Array.isArray(this.chunk[xc][yc][zc])) {
-                    alreadyExists = true;
-                }
-            }
-        }
-
-        if (!alreadyExists) {
-
-            if (!this.chunk[xc]) {
-                this.chunk[xc] = {};
-            }
-            if (!this.chunk[xc][yc]) {
-                this.chunk[xc][yc] = {};
-            }
-            if (!Array.isArray(this.chunk[xc][yc][zc])) {
-                this.chunk[xc][yc][zc] = [];
-            }
-            if (!this.chunkModel[xc]) {
-                this.chunkModel[xc] = {};
-            }
-            if (!this.chunkModel[xc][yc]) {
-                this.chunkModel[xc][yc] = {};
-            }
-            if (!this.chunkModel[xc][yc][zc]) {
-                this.chunkModel[xc][yc][zc] = {};
-            }
-
-            for (let x = xc * this.chunkSize; x < (xc * this.chunkSize) + this.chunkSize; x++) {
-                for (let z = zc * this.chunkSize; z < (zc * this.chunkSize) + this.chunkSize; z++) {
-                    let groundHeight = (Math.round(simplx2(x * this.ground.scale + 100, z * this.ground.scale + 100) * this.ground.height) + this.ground.offset);
-                    for (let y = yc * this.chunkSize; y < (yc * this.chunkSize) + this.chunkSize; y++) {
-
-                        if (simplx3(x * this.cave.scaleHoriz + 1246, y * this.cave.scaleVert + 1285, z * this.cave.scaleHoriz + 1983) < this.cave.threshold) {
-                            // grass
-                            if (y === groundHeight) {
-                                this.addBlockRaw(x, y, z, "grass");
-                            }
-
-                            // dirt
-                            if (y < groundHeight && y > groundHeight - 7) {
-                                this.addBlockRaw(x, y, z, "dirt");
-                            }
-
-                            // stone
-                            if (y <= groundHeight - 7) {
-                                this.addBlockRaw(x, y, z, "stone");
-                            }
-                        }
-
-                    }
-                }
-            }
-        }
-
-        this.compile(xc, yc, zc);
-
     }
 
     generateNearby() {
@@ -237,7 +248,11 @@ class World {
         for (let x = -this.renderDistance; x <= this.renderDistance; x++) {
             for (let y = -this.renderDistance; y <= this.renderDistance; y++) {
                 for (let z = -this.renderDistance; z <= this.renderDistance; z++) {
-                    this.generate(ch[0] + x, ch[1] - y, ch[2] + z);
+                    if(x === 0 && z === 0){
+                       this.generate(ch[0] + x, ch[1] - y, ch[2] + z); 
+                    } else {
+                        this.update.push([ch[0] + x, ch[1] - y, ch[2] + z]);
+                    }
                 }
             }
         }
@@ -382,6 +397,7 @@ class World {
                     this.chunkModel[x][y][z].model = new THREE.Mesh(geometry, material);
 
                     scene.add(this.chunkModel[x][y][z].model);
+                    this.chunkModel[x][y][z].rendered = true;
                 }
             }
         }
@@ -511,6 +527,7 @@ class World {
         this.chunkModel[x][y][z].model = new THREE.Mesh(geometry, material);
 
         scene.add(this.chunkModel[x][y][z].model);
+        this.chunkModel[x][y][z].rendered = true;
     }
 
     processChunk(data){
@@ -553,18 +570,4 @@ class World {
         scene.add(this.chunkModel[data.x][data.y][data.z].model);
 
     }
-}
-
-function initNoise(){
-    boise.seed = this.seed;
-}
-
-function simplx2(x, y){
-    initNoise();
-    return boise.simplex2(x, y);
-}
-
-function simplx3(x, y, z){
-    initNoise();
-    return boise.simplex3(x, y, z);
 }

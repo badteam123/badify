@@ -1,5 +1,5 @@
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 0.01, 800);
+const camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 0.01, 2000);
 const renderer = new THREE.WebGLRenderer({ antialias: false });
 renderer.shadowMap.enabled = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -7,6 +7,8 @@ renderer.shadowMap.autoUpdate = false;
 
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+
+//scene.fog = new THREE.FogExp2( 0x000000, 0.01 );
 
 // Add directional light
 
@@ -20,6 +22,10 @@ sunLight.target.position.set(0, 0, 0);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
 scene.add(ambientLight);
 
+const playerLight = new THREE.PointLight(0xffc996, 0, 12);
+scene.add(playerLight);
+
+/*
 const skyboxLoader = new THREE.CubeTextureLoader();
 skyboxLoader.setPath('https://cdn.jsdelivr.net/gh/badteam123/assets@567fe90f85f0ec5a7873dfe5b346438b7cc90afb/skybox/');
 
@@ -30,6 +36,7 @@ const skybox = skyboxLoader.load([
 ]);
 
 scene.background = skybox;
+*/
 
 function animate() {
     requestAnimationFrame(animate);
@@ -40,18 +47,26 @@ animate();
 const generator = new Worker('generateThread.js');
 var generatorReady = true;
 
+const generator2 = new Worker('generateThread.js');
+var generator2Ready = true;
+
 const playerHeight = 1.8;
 const playerWidth = playerHeight * 0.3;
 const halfHeight = playerHeight * 0.5;
 const halfWidth = playerWidth * 0.5;
 const stepHeight = 0.6;
 
-const speed = 0.0007;
+const speed = 0.00007;
 const gravity = 0.000024;
 const jumpHeight = 0.008;
 const dampening = 0.012;
 
+var caveLight = 0;
+
 var world = new World();
+
+const perlin2D = new PerlinNoise2D(world.seed);
+const perlin3D = new PerlinNoise3D(world.seed);
 
 var mouse = {
     l: false,
@@ -112,12 +127,6 @@ function defineImages() {
 
 var grassTex;
 
-var initialDelay = false;
-
-function delayInitial() {
-    initialDelay = true;
-}
-
 function setup() {
     defineImages(); // needed cause it can't run in preload (cringe)
 
@@ -126,7 +135,6 @@ function setup() {
     pixelDensity(1);
     noSmooth();
     frameRate(9999999);
-    setTimeout(delayInitial, 1);
 
     grassTex = new THREE.TextureLoader().load(`https://cdn.jsdelivr.net/gh/badteam123/assets@8286a7f20aa9331b86a7b3ac2401ec4b986ba7da/texsheet.png`);
     grassTex.magFilter = THREE.NearestFilter;
@@ -139,7 +147,7 @@ function setup() {
     //        world.addBlock(x, 0, z, null);
     //    }
     //}
-
+ 
     world.generateNearby();
 
     world.compile();
@@ -166,7 +174,7 @@ function draw() {
         }
     }
 
-    if (inValidChunk && initialDelay) {
+    if (inValidChunk) {
         switch (-keyIsDown(87) + keyIsDown(83) + (keyIsDown(65) * 10) + -(keyIsDown(68) * 10) + 11) {
             case 11://no
                 break;
@@ -209,6 +217,10 @@ function draw() {
             player.onGround = false;
         }
 
+        if(Math.abs(player.yVel) > 0.02){
+            player.yVel = lerp(player.yVel, 0, 0.01*deltaTime);
+        }
+
         world.collide();
 
         if (player.xVel != 0) {
@@ -246,13 +258,13 @@ function draw() {
     }
 
     if (prevChunk.x != player.chunk.x || prevChunk.y != player.chunk.y || prevChunk.z != player.chunk.z) {
-        let xdiff = Math.round(player.chunk.x) - Math.round(prevChunk.X);
-        let ydiff = Math.round(player.chunk.y) - Math.round(prevChunk.Y);
-        let zdiff = Math.round(player.chunk.z) - Math.round(prevChunk.Z);
+        let xdiff = Math.round(player.chunk.x) - Math.round(prevChunk.x);
+        let ydiff = Math.round(player.chunk.y) - Math.round(prevChunk.y);
+        let zdiff = Math.round(player.chunk.z) - Math.round(prevChunk.z);
 
-        for (let x = -world.renderDistance; x < world.renderDistance + 1; x++) {
-            for (let y = -world.renderDistance; y < world.renderDistance + 1; y++) {
-                for (let z = -world.renderDistance; z < world.renderDistance + 1; z++) {
+        for (let x = -world.renderDistance - (Math.max(xdiff, 0)); x < world.renderDistance + 1 - (Math.min(xdiff, 0)); x++) {
+            for (let y = -world.renderDistance - (Math.max(ydiff, 0)); y < world.renderDistance + 1 - (Math.min(ydiff, 0)); y++) {
+                for (let z = -world.renderDistance - (Math.max(zdiff, 0)); z < world.renderDistance + 1 - (Math.min(zdiff, 0)); z++) {
                     if (x + prevChunk.x >= world.renderDistance || x + prevChunk.x <= -world.renderDistance ||
                         y + prevChunk.y >= world.renderDistance || y + prevChunk.y <= -world.renderDistance ||
                         z + prevChunk.z >= world.renderDistance || z + prevChunk.z <= -world.renderDistance) {
@@ -263,6 +275,16 @@ function draw() {
                         //console.log(player.chunk.x + x, player.chunk.y + y, player.chunk.z + z);
                         //world.generate(player.chunk.x + x, player.chunk.y + y, player.chunk.z + z);
 
+                    }
+
+                    if(x < -world.renderDistance || y < -world.renderDistance || z < -world.renderDistance || x > world.renderDistance || y > world.renderDistance || z > world.renderDistance){
+                        if (world.doesChunkExist(player.chunk.x + x, player.chunk.y + y, player.chunk.z + z)) {
+                            world.unloadChunk(player.chunk.x + x, player.chunk.y + y, player.chunk.z + z);
+                        }
+                    } else {
+                        if (world.doesChunkExist(player.chunk.x + x, player.chunk.y + y, player.chunk.z + z)) {
+                            world.loadChunk(player.chunk.x + x, player.chunk.y + y, player.chunk.z + z);
+                        }
                     }
                 }
             }
@@ -275,6 +297,26 @@ function draw() {
             if (!world.doesChunkExist(world.update[0][0], world.update[0][1], world.update[0][2])) {
                 generatorReady = false;
                 generator.postMessage({
+                    chunkSize: world.chunkSize,
+                    x: world.update[0][0],
+                    y: world.update[0][1],
+                    z: world.update[0][2],
+                    cave: world.cave,
+                    ground: world.ground,
+                    seed: world.seed
+                });
+                world.update.shift();
+            } else {
+                world.update.shift();
+            }
+        }
+    }
+
+    if (generator2Ready) {
+        if (world.update.length >= 1) {
+            if (!world.doesChunkExist(world.update[0][0], world.update[0][1], world.update[0][2])) {
+                generator2Ready = false;
+                generator2.postMessage({
                     chunkSize: world.chunkSize,
                     x: world.update[0][0],
                     y: world.update[0][1],
@@ -338,10 +380,22 @@ function draw() {
     camera.position.z = player.camera.z;
     camera.aspect = window.innerWidth / window.innerHeight;
 
+    updateLighting();
+
     updateBlockFacing();
 
     camera.updateProjectionMatrix();
 
+}
+
+function updateLighting(){
+    playerLight.position.set(player.camera.x, player.camera.y, player.camera.z);
+    let distUnderground = Math.max(-(player.y - ((perlin2D.noise(player.x * world.ground.scale + 100, player.z * world.ground.scale + 100) * world.ground.height) + world.ground.offset)), 0);
+    caveLight = Math.min(Math.max(distUnderground*0.1, 0), 1);
+
+    sunLight.intensity = lerp(0.5, 0, caveLight);
+    ambientLight.intensity = lerp(0.8, 0, caveLight);
+    playerLight.intensity = lerp(0, 0.6, caveLight);
 }
 
 function updateBlockFacing() {
@@ -396,4 +450,9 @@ document.addEventListener("mouseup", function (event) {
 generator.onmessage = function (e) {
     world.processChunk(e.data);
     generatorReady = true;
+}
+
+generator2.onmessage = function (e) {
+    world.processChunk(e.data);
+    generator2Ready = true;
 }
